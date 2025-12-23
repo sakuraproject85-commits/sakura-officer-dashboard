@@ -1,34 +1,55 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react'
+import Sidebar from './components/Sidebar'
+import TopBar from './components/TopBar'
+import Administrasi from './pages/Administrasi'
+import Dashboard from './pages/Dashboard'
+import Kunjungan from './pages/Kunjungan'
+import Login from './pages/Login'
+import Pengunjung from './pages/Pengunjung'
+import QrLogs from './pages/QrLogs'
+import { getCurrentUser, login, logout } from './services/mockApi'
+
+const pageMap = {
+  dashboard: Dashboard,
+  kunjungan: Kunjungan,
+  administrasi: Administrasi,
+  pengunjung: Pengunjung,
+  'qr-logs': QrLogs,
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [user, setUser] = useState(null)
+  const [activePage, setActivePage] = useState('dashboard')
+
+  useEffect(() => {
+    setUser(getCurrentUser())
+  }, [])
+
+  const handleLogin = (payload) => {
+    setUser(login(payload))
+  }
+
+  const handleLogout = () => {
+    logout()
+    setUser(null)
+  }
+
+  if (!user) {
+    return <Login onLogin={handleLogin} />
+  }
+
+  const ActivePage = pageMap[activePage] || Dashboard
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+      <Sidebar active={activePage} onSelect={setActivePage} />
+      <div className="flex flex-1 flex-col">
+        <TopBar user={user} onLogout={handleLogout} />
+        <main className="flex-1 px-8 py-6">
+          <ActivePage />
+        </main>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    </div>
   )
 }
 

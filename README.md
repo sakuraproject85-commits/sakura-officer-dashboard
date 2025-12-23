@@ -1,22 +1,40 @@
- HEAD
-# Sakura Officer Dashboard
+# SAKURA Officer Dashboard (Demo MVP)
 
-Initial repository for SAKURA officer dashboard demo.
+Demo dashboard untuk petugas SAKURA. Proyek ini menggunakan Vite + React + Tailwind CSS, dengan data mock berbasis JSON dan localStorage agar siap dimigrasi ke API/DB nyata.
 
-# React + Vite
+## ✨ Fitur
+- Login sederhana (username + role admin/officer)
+- Dashboard overview dengan ringkasan dan chart mock
+- Kunjungan: konfirmasi / tolak kunjungan
+- Administrasi: tandai permintaan sebagai processed
+- Pengunjung: daftar warga
+- QR Logs: riwayat QR yang dihasilkan
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 🚀 Cara Menjalankan
+```bash
+npm install
+npm run dev
+```
 
-Currently, two official plugins are available:
+## 📁 Lokasi Mock Data
+Mock data disimpan di `src/data`:
+- `src/data/visits.json`
+- `src/data/adminRequests.json`
+- `src/data/visitors.json`
+- `src/data/qrLogs.json`
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Data di-load pertama kali ke `localStorage` melalui service di `src/services/mockApi.js`. Semua update (confirm, reject, processed) hanya mengubah state di localStorage.
 
-## React Compiler
+## 🔄 Rencana Migrasi ke API/Database
+Semua akses data dipusatkan di folder `src/services`:
+- `src/services/mockApi.js`
+- `src/services/mockStorage.js`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Ketika siap migrasi:
+1. Ganti implementasi di `mockApi.js` dengan fetch ke backend atau repository layer baru.
+2. Pertahankan tanda tangan fungsi (misalnya `getVisits`, `updateVisitStatus`) agar komponen UI tetap sama.
+3. Pindahkan data ke PostgreSQL + endpoint API (atau n8n lokal) tanpa mengubah UI.
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
- b8db697 (init vite react project)
+## ✅ Catatan
+- Demo only (tanpa hardening/production security)
+- Tidak memakai Supabase atau auth pihak ketiga

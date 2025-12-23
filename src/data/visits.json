@@ -1,0 +1,30 @@
+[
+  {
+    "id": "VIS-1001",
+    "visitorName": "Dina Rahmawati",
+    "nik": "3175031209870001",
+    "requestedDate": "2025-02-14",
+    "status": "pending"
+  },
+  {
+    "id": "VIS-1002",
+    "visitorName": "Arif Nugroho",
+    "nik": "3175031401980002",
+    "requestedDate": "2025-02-14",
+    "status": "confirmed"
+  },
+  {
+    "id": "VIS-1003",
+    "visitorName": "Siti Aulia",
+    "nik": "3175032106750003",
+    "requestedDate": "2025-02-15",
+    "status": "pending"
+  },
+  {
+    "id": "VIS-1004",
+    "visitorName": "Budi Santoso",
+    "nik": "3175030903900004",
+    "requestedDate": "2025-02-13",
+    "status": "rejected"
+  }
+]
