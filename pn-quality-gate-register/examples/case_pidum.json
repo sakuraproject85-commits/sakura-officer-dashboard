@@ -1,0 +1,9 @@
+{
+  "case_type": "PIDUM",
+  "correlation_id": "corr-123",
+  "checklist": ["berkas-utama"],
+  "data": {
+    "suspect_name": "Budi",
+    "pasal": "Pasal 362"
+  }
+}

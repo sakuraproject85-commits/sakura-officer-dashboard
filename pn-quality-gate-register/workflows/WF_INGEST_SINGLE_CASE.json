@@ -1,0 +1,110 @@
+{
+  "name": "WF_INGEST_SINGLE_CASE",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ingest/case",
+        "httpMethod": "POST",
+        "responseMode": "lastNode"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const payload = items[0].json;\nconst normalized = {\n  case_type: (payload.case_type || '').toUpperCase(),\n  checklist: payload.checklist || [],\n  data: payload.data || {}\n};\nconst crypto = require('crypto');\nconst idempotency_key = crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');\nconst correlation_id = payload.correlation_id || crypto.randomUUID();\nreturn [{ json: { normalized, idempotency_key, correlation_id } }];"
+      },
+      "name": "Normalize + Hash",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "query": "INSERT INTO cases (idempotency_key, correlation_id, status, payload)\nVALUES ($1, $2, 'DRAFT', $3)\nON CONFLICT (idempotency_key) DO UPDATE SET updated_at = now()\nRETURNING id",
+        "values": "={{[$json.idempotency_key, $json.correlation_id, JSON.stringify($json.normalized)]}}"
+      },
+      "name": "Upsert Case",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [460, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const normalized = $json.normalized || $items(\"Normalize + Hash\")[0].json.normalized;\nconst ruleset = 'v1';\nconst errors = [];\nconst requiredByType = {\n  PIDUM: ['suspect_name', 'pasal'],\n  TIPIKOR: ['suspect_name', 'nilai_kerugian'],\n  PERDATA: ['penggugat', 'tergugat'],\n  PHI: ['penggugat', 'perusahaan'],\n  TILANG: ['vehicle_plate', 'violation_code']\n};\nconst req = requiredByType[normalized.case_type] || [];\nfor (const field of req) {\n  if (!normalized.data[field]) errors.push({ field, code: 'REQUIRED' });\n}\nreturn [{ json: { ruleset, errors, is_valid: errors.length === 0 } }];"
+      },
+      "name": "Validate Ruleset",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [700, 0]
+    },
+    {
+      "parameters": {
+        "query": "INSERT INTO case_validations (case_id, ruleset_version, is_valid, errors)\nVALUES ($1, $2, $3, $4)",
+        "values": "={{[$json.id, $items(\"Validate Ruleset\")[0].json.ruleset, $items(\"Validate Ruleset\")[0].json.is_valid, JSON.stringify($items(\"Validate Ruleset\")[0].json.errors)]}}"
+      },
+      "name": "Store Validation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [920, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const validation = $items(\"Validate Ruleset\")[0].json;\nconst checklist = $items(\"Normalize + Hash\")[0].json.normalized.checklist || [];\nconst status = validation.is_valid && checklist.length > 0 ? 'DRAFT' : 'TERTAHAN';\nreturn [{ json: { status, errors: validation.errors } }];"
+      },
+      "name": "Decide Status",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1140, 0]
+    },
+    {
+      "parameters": {
+        "query": "UPDATE cases SET status = $1 WHERE id = $2",
+        "values": "={{[$json.status, $items(\"Upsert Case\")[0].json.id]}}"
+      },
+      "name": "Update Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1360, 0]
+    },
+    {
+      "parameters": {
+        "responseData": "={{ { case_id: $items(\"Upsert Case\")[0].json.id, status: $items(\"Decide Status\")[0].json.status, errors: $items(\"Decide Status\")[0].json.errors, correlation_id: $items(\"Normalize + Hash\")[0].json.correlation_id } }}",
+        "responseCode": 200
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1580, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Normalize + Hash", "type": "main", "index": 0}]]
+    },
+    "Normalize + Hash": {
+      "main": [[{"node": "Upsert Case", "type": "main", "index": 0}]]
+    },
+    "Upsert Case": {
+      "main": [[{"node": "Validate Ruleset", "type": "main", "index": 0}]]
+    },
+    "Validate Ruleset": {
+      "main": [[{"node": "Store Validation", "type": "main", "index": 0}]]
+    },
+    "Store Validation": {
+      "main": [[{"node": "Decide Status", "type": "main", "index": 0}]]
+    },
+    "Decide Status": {
+      "main": [[{"node": "Update Status", "type": "main", "index": 0}]]
+    },
+    "Update Status": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveExecutionProgress": true
+  }
+}
