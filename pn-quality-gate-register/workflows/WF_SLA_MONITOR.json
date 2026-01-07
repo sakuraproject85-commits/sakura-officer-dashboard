@@ -1,0 +1,78 @@
+{
+  "name": "WF_SLA_MONITOR",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 15,
+              "unit": "minutes"
+            }
+          ]
+        }
+      },
+      "name": "Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "query": "SELECT id, case_id, due_at FROM sla_watch WHERE status = 'OPEN' AND due_at <= now()",
+        "values": "={{[]}}"
+      },
+      "name": "Find Breaches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "return items.map(item => ({ json: { ...item.json, breached_at: new Date().toISOString() } }));"
+      },
+      "name": "Mark Breach",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "query": "UPDATE sla_watch SET status = 'BREACHED', breached_at = $1 WHERE id = $2",
+        "values": "={{[$json.breached_at, $json.id]}}"
+      },
+      "name": "Update SLA",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Notification stub (email/Slack/etc)\nreturn items.map(item => ({ json: { case_id: item.json.case_id, message: 'SLA breached' } }));"
+      },
+      "name": "Notify Stub",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [880, 0]
+    }
+  ],
+  "connections": {
+    "Cron": {
+      "main": [[{"node": "Find Breaches", "type": "main", "index": 0}]]
+    },
+    "Find Breaches": {
+      "main": [[{"node": "Mark Breach", "type": "main", "index": 0}]]
+    },
+    "Mark Breach": {
+      "main": [[{"node": "Update SLA", "type": "main", "index": 0}]]
+    },
+    "Update SLA": {
+      "main": [[{"node": "Notify Stub", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveExecutionProgress": true
+  }
+}

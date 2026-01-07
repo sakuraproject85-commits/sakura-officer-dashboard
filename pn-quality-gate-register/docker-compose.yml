@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${QGR_DB_NAME}
+      POSTGRES_USER: ${QGR_DB_USER}
+      POSTGRES_PASSWORD: ${QGR_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d:ro
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5679:5678"
+    env_file:
+      - .env
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: ${QGR_N8N_BASIC_AUTH_ACTIVE}
+      N8N_BASIC_AUTH_USER: ${QGR_N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${QGR_N8N_BASIC_AUTH_PASSWORD}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${QGR_DB_NAME}
+      DB_POSTGRESDB_USER: ${QGR_DB_USER}
+      DB_POSTGRESDB_PASSWORD: ${QGR_DB_PASSWORD}
+    depends_on:
+      - postgres
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  postgres_data:
+  n8n_data:

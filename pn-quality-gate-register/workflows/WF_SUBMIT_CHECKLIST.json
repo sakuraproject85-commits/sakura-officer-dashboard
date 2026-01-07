@@ -1,0 +1,123 @@
+{
+  "name": "WF_SUBMIT_CHECKLIST",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "cases/:id/checklist",
+        "httpMethod": "POST",
+        "responseMode": "lastNode"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const apiKey = $headers['x-api-key'] || $headers['X-API-KEY'];\nreturn [{ json: { apiKey, checklist: $json.checklist || [], caseId: $params.id } }];"
+      },
+      "name": "Extract API Key",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "query": "SELECT role, name FROM users_roles WHERE api_key = $1",
+        "values": "={{[$json.apiKey]}}"
+      },
+      "name": "Lookup Role",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const role = $json[0]?.role;\nif (role !== 'validator') {\n  throw new Error('FORBIDDEN');\n}\nreturn [{ json: { actor: $json[0]?.name || 'validator', caseId: $items(\"Extract API Key\")[0].json.caseId, checklist: $items(\"Extract API Key\")[0].json.checklist } }];"
+      },
+      "name": "Authorize",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "query": "INSERT INTO case_audit_events (case_id, event_type, actor, diff)\nVALUES ($1, 'CHECKLIST_SUBMITTED', $2, $3)",
+        "values": "={{[$json.caseId, $json.actor, JSON.stringify({ checklist: $json.checklist })]}}"
+      },
+      "name": "Audit Checklist",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [880, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const now = new Date().toISOString();\nconst registerNumber = `REG-${now.replace(/[-:.TZ]/g, '').slice(0, 14)}`;\nreturn [{ json: { registerNumber } }];"
+      },
+      "name": "Generate Register",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "query": "UPDATE cases SET status = 'REGISTER_SAH', register_number = $1, updated_at = now() WHERE id = $2",
+        "values": "={{[$json.registerNumber, $items(\"Authorize\")[0].json.caseId]}}"
+      },
+      "name": "Update Case",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "query": "INSERT INTO case_audit_events (case_id, event_type, actor, diff)\nVALUES ($1, 'REGISTER_SAH', $2, $3)",
+        "values": "={{[$items(\"Authorize\")[0].json.caseId, $items(\"Authorize\")[0].json.actor, JSON.stringify({ register_number: $items(\"Generate Register\")[0].json.registerNumber })]}}"
+      },
+      "name": "Audit Register",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1540, 0]
+    },
+    {
+      "parameters": {
+        "responseData": "={{ { case_id: $items(\"Authorize\")[0].json.caseId, status: 'REGISTER_SAH', register_number: $items(\"Generate Register\")[0].json.registerNumber } }}",
+        "responseCode": 200
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1760, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Extract API Key", "type": "main", "index": 0}]]
+    },
+    "Extract API Key": {
+      "main": [[{"node": "Lookup Role", "type": "main", "index": 0}]]
+    },
+    "Lookup Role": {
+      "main": [[{"node": "Authorize", "type": "main", "index": 0}]]
+    },
+    "Authorize": {
+      "main": [[{"node": "Audit Checklist", "type": "main", "index": 0}]]
+    },
+    "Audit Checklist": {
+      "main": [[{"node": "Generate Register", "type": "main", "index": 0}]]
+    },
+    "Generate Register": {
+      "main": [[{"node": "Update Case", "type": "main", "index": 0}]]
+    },
+    "Update Case": {
+      "main": [[{"node": "Audit Register", "type": "main", "index": 0}]]
+    },
+    "Audit Register": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveExecutionProgress": true
+  }
+}

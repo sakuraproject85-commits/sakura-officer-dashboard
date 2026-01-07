@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "ticket_id": "T-001",
+      "vehicle_plate": "B 1234 CD",
+      "violation_code": "A01",
+      "driver_name": "Dina",
+      "checklist": ["foto-bukti"]
+    },
+    {
+      "ticket_id": "T-002",
+      "vehicle_plate": "B 9876 EF",
+      "violation_code": "B05",
+      "driver_name": "Rudi",
+      "checklist": []
+    }
+  ]
+}

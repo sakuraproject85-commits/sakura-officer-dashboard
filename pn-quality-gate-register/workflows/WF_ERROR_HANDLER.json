@@ -1,0 +1,42 @@
+{
+  "name": "WF_ERROR_HANDLER",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const payload = items[0].json || {};\nconst piiKeys = ['nik', 'no_ktp', 'email', 'phone', 'alamat', 'address', 'suspect_name', 'penggugat', 'tergugat'];\nconst mask = (value) => typeof value === 'string' ? value.replace(/.(?=.{4})/g, '*') : value;\nconst sanitize = (obj) => {\n  if (!obj || typeof obj !== 'object') return obj;\n  const clone = Array.isArray(obj) ? [] : {};\n  for (const key of Object.keys(obj)) {\n    const val = obj[key];\n    clone[key] = piiKeys.includes(key) ? mask(val) : sanitize(val);\n  }\n  return clone;\n};\nreturn [{ json: { error: payload.error, context: sanitize(payload) } }];"
+      },
+      "name": "Mask PII",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Stub notification (email/Slack/etc)\nreturn items.map(item => ({ json: { message: 'Workflow error captured', details: item.json } }));"
+      },
+      "name": "Notify Stub",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [440, 0]
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [[{"node": "Mask PII", "type": "main", "index": 0}]]
+    },
+    "Mask PII": {
+      "main": [[{"node": "Notify Stub", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveExecutionProgress": true
+  }
+}

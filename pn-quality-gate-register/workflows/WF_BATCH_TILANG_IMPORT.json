@@ -1,0 +1,59 @@
+{
+  "name": "WF_BATCH_TILANG_IMPORT",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ingest/tilang-batch",
+        "httpMethod": "POST",
+        "responseMode": "lastNode"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const payload = items[0].json;\nconst entries = Array.isArray(payload.items) ? payload.items : [];\nreturn entries.map((item, index) => ({ json: { index, item } }));"
+      },
+      "name": "Split Items",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "functionCode": "const item = $json.item;\nreturn [{ json: {\n  case_type: 'TILANG',\n  data: item,\n  checklist: item.checklist || []\n} }];"
+      },
+      "name": "Normalize Item",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "responseData": "={{ { processed: $items().length, status: 'OK', note: 'Batch processed, details omitted for brevity' } }}",
+        "responseCode": 200
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [660, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Split Items", "type": "main", "index": 0}]]
+    },
+    "Split Items": {
+      "main": [[{"node": "Normalize Item", "type": "main", "index": 0}]]
+    },
+    "Normalize Item": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "saveExecutionProgress": true
+  }
+}
